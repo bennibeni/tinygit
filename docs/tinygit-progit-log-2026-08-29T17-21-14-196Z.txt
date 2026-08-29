@@ -1,0 +1,261 @@
+[18:02:13] $ git init
+repo initialized
+
+[18:03:29] $ write README.md "Questo è il mio primo file tracciato da Git."
+wrote work:README.md (44 chars)
+
+[18:03:49] $ git add README.md
+staged README.md
+
+[18:04:09] $ git commit -m "commit iniziale"
+commit dc3a13e tree 2a90d18
+
+[18:05:34] $ write README.md "Questo è il mio primo file tracciato da Git.\nAggiungo una seconda riga."
+wrote work:README.md (71 chars)
+
+[18:05:49] $ git diff
+diff --git a/README.md b/README.md
+-Questo è il mio primo file tracciato da Git.
++Questo è il mio primo file tracciato da Git.nAggiungo una seconda riga.
+
+[18:06:01] $ git add README.md
+staged README.md
+
+[18:06:16] $ git diff --staged
+diff --git a/README.md b/README.md
+-Questo è il mio primo file tracciato da Git.
++Questo è il mio primo file tracciato da Git.nAggiungo una seconda riga.
+
+[18:06:30] $ git commit -m "aggiunta seconda riga"
+commit da18e0e tree 4a95567
+
+[18:10:26] $ git log
+da18e0e
+tree 4a955670182256074b4bc7a034f24afaad6077fe
+parent dc3a13ed86cbe491d7f30b5ae766a8dceca51cf7
+author You <you@example.com> 0 +0000
+committer You <you@example.com> 0 +0000
+
+aggiunta seconda riga
+dc3a13e
+tree 2a90d185e8d1e07019c69f614935c7dab23c5ee8
+author You <you@example.com> 0 +0000
+committer You <you@example.com> 0 +0000
+
+commit iniziale
+
+[18:10:45] $ git log --graph
+*  da18e0e (HEAD, main) aggiunta seconda riga
+*  dc3a13e commit iniziale
+
+[18:13:12] $ write README.md "una modifica per sbaglio"
+wrote work:README.md (24 chars)
+
+[18:13:23] $ git add README.md
+staged README.md
+
+[18:13:32] $ git status
+On branch main
+README.md  work:modified  index:staged
+
+[18:13:44] $ git restore --staged README.md
+restored --staged
+
+[18:14:02] $ git status
+On branch main
+README.md  work:modified  index:staged
+
+[18:16:33] $ git restore --staged README.md
+unstaged README.md
+
+[18:16:46] $ git status
+On branch main
+README.md  work:modified  index:same
+
+[18:17:25] $ git restore README.md
+restored README.md
+
+[18:17:43] $ git status
+On branch main
+README.md  work:same  index:same
+
+[18:18:54] $ git branch testing
+created testing
+
+[18:19:04] $ git log --graph
+*  da18e0e (HEAD, main, testing) aggiunta seconda riga
+*  dc3a13e commit iniziale
+
+[18:19:55] $ git checkout testing
+checked out testing
+
+[18:20:09] $ write test.txt "un file solo sul branch testing"
+wrote work:test.txt (31 chars)
+
+[18:20:19] $ git add test.txt
+staged test.txt
+
+[18:20:29] $ git commit -m "avanzo su testing"
+commit 185fbd4 tree c3534bd
+
+[18:20:54] $ git log --graph
+ *  185fbd4 (HEAD, testing) avanzo su testing
+*   da18e0e (main) aggiunta seconda riga
+*   dc3a13e commit iniziale
+
+[18:22:31] $ git checkout main
+checked out main
+
+[18:22:41] $ git merge testing
+fast-forward -> testing (185fbd4)
+
+[18:23:03] $ git log --graph
+*  185fbd4 (HEAD, main, testing) avanzo su testing
+*  da18e0e aggiunta seconda riga
+*  dc3a13e commit iniziale
+
+[18:26:12] $ git branch -d testing
+deleted testing
+
+[18:26:26] $ git branch
+* main
+
+[18:27:30] $ git branch iss53
+created iss53
+
+[18:27:41] $ git checkout iss53
+checked out iss53
+
+[18:27:52] $ write index.html "versione con il font Comic Sans"
+wrote work:index.html (31 chars)
+
+[18:28:05] $ git add index.html
+staged index.html
+
+[18:34:13] $ git commit -m "font in stile Comic Sans, l'ho sempre adorato"
+commit b79992e tree 202a211
+
+[18:34:24] $ git checkout main
+checked out main
+
+[18:34:34] $ write index.html "versione con font serio e professionale"
+wrote work:index.html (39 chars)
+
+[18:34:45] $ git add index.html
+staged index.html
+
+[18:34:57] $ git commit -m "font professionale per il lancio"
+commit b1a294f tree 1b82c41
+
+[18:35:28] $ git merge iss53
+CONFLITTO: merge automatico fallito per 1 file
+  - index.html
+Risolvi i file (rimuovi i marcatori <<<<<<< ======= >>>>>>>), poi 'add' e 'commit'.
+
+[18:36:44] $ git status
+On branch main
+README.md  work:same  index:same
+index.html  work:modified  index:unstaged
+test.txt  work:same  index:same
+
+[18:39:52] $ git status
+On branch main
+You have unmerged paths (1 both modified) — 'add' the resolved files, then 'commit'.
+README.md  work:same  index:same
+index.html  work:conflict  index:unmerged
+test.txt  work:same  index:same
+
+[18:42:26] $ git commit -m "merge branch 'iss53': risolto conflitto sul font"
+merge commit 4ae044b (2 genitori) tree 1c904d7
+
+[18:43:11] $ git log --graph
+*   4ae044b (HEAD, main) merge branch 'iss53': risolto conflitto sul font
+*   b1a294f font professionale per il lancio
+ *  b79992e (iss53) font in stile Comic Sans, l'ho sempre adorato
+ *  185fbd4 avanzo su testing
+ *  da18e0e aggiunta seconda riga
+ *  dc3a13e commit iniziale
+
+[18:49:09] $ git branch --merged
+* main
+  iss53
+
+[18:49:29] $ git branch --no-merged
+(none)
+
+[18:50:33] $ git branch -d iss53
+deleted iss53
+
+[18:50:44] $ git branch
+* main
+
+[19:00:19] $ git init
+repo initialized
+
+[19:01:07] $ git hash-object -w --stdin "version 1"
+e32092a83f837140c08e85a60ef16a6b2a208986
+
+[19:01:59] $ git cat-file -p e32092a83f837140c08e85a60ef16a6b2a208986
+version 1
+
+[19:02:17] $ git cat-file -t e32092a83f837140c08e85a60ef16a6b2a208986
+blob
+
+[19:03:34] $ git update-index --add --cacheinfo 100644 e32092a83f837140c08e85a60ef16a6b2a208986 test.txt
+added test.txt to the index (staged, without touching the working tree)
+
+[19:03:51] $ git status
+On branch main
+test.txt  work:—  index:added
+
+[19:04:47] $ git write-tree
+ffe9ce5421c3a1cbd84a858f8f5696029574abdc
+
+[19:05:14] $ git ls-tree ffe9ce5421c3a1cbd84a858f8f5696029574abdc
+ls-tree: cannot resolve "ffe9ce5421c3a1cbd84a858f8f5696029574abdc"
+
+[19:08:10] $ git ls-tree ffe9ce5421c3a1cbd84a858f8f5696029574abdc
+100644 blob e32092a83f837140c08e85a60ef16a6b2a208986	test.txt
+
+[19:09:25] $ git commit-tree ffe9ce5421c3a1cbd84a858f8f5696029574abdc -m "first commit"
+3148ae3c6dc0f1f144bf104254fa23c75661740c
+
+[19:10:05] $ git cat-file -p ffe9ce5421c3a1cbd84a858f8f5696029574abdc
+100644 blob e32092a83f837140c08e85a60ef16a6b2a208986	test.txt
+
+[19:12:52] $ git cat-file -p 3148ae3c6dc0f1f144bf104254fa23c75661740c
+tree ffe9ce5421c3a1cbd84a858f8f5696029574abdc
+author You <you@example.com> 0 +0000
+committer You <you@example.com> 0 +0000
+
+first commit
+
+[19:14:23] $ git hash-object -w --stdin "version 2"
+55af8e5b36d666efb8281535bd98fe0f84275347
+
+[19:15:00] $ git update-index --add --cacheinfo 100644 55af8e5b36d666efb8281535bd98fe0f84275347 test.txt
+added test.txt to the index (staged, without touching the working tree)
+
+[19:15:19] $ git write-tree
+a6e487621b526f75d4ed72fffa4113a635e3c147
+
+[19:15:46] $ git commit-tree a6e487621b526f75d4ed72fffa4113a635e3c147 -p 3148ae3c6dc0f1f144bf104254fa23c75661740c -m "second commit"
+e1b02673e2f7a142e6be050aef2e17d1b202a836
+
+[19:16:26] $ git cat-file -p e1b02673e2f7a142e6be050aef2e17d1b202a836
+tree a6e487621b526f75d4ed72fffa4113a635e3c147
+parent 3148ae3c6dc0f1f144bf104254fa23c75661740c
+author You <you@example.com> 0 +0000
+committer You <you@example.com> 0 +0000
+
+second commit
+
+[19:19:48] $ git update-ref refs/heads/master e1b02673e2f7a142e6be050aef2e17d1b202a836
+refs/heads/master -> e1b0267
+
+[19:20:03] $ git checkout master
+checked out master
+
+[19:20:17] $ git log --graph
+*  e1b0267 (HEAD, master) second commit
+*  3148ae3 first commit

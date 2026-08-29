@@ -1,21 +1,24 @@
 // src/lib/tinygit/graph.js
 import { readCommit } from "./readers";
 import { resolveHEAD } from "./plumbing";
-import { listBranches } from "./porcelain";
+import { listBranches, listTags } from "./porcelain";
 
 // Builds a small DAG description suitable for a top-to-bottom SVG render:
 // - nodes: [{ oid, parents:[...], firstLine, row, lane }]
 // - lanes: [{ lane, color }]
 // - branchTips: [{ name, oid, lane }]
+// - tagTips: [{ name, oid }]  (tags never move, so no lane of their own)
 // - headOid
 export function buildGraph(repo) {
   const branches = listBranches(repo);
+  const tags = listTags(repo);
   const headOid = resolveHEAD(repo);
 
-  // 1) Collect every commit reachable from any branch tip.
+  // 1) Collect every commit reachable from any branch tip OR tag.
   const nodesByOid = new Map();
   const queue = [];
   for (const b of branches) if (b.oid) queue.push(b.oid);
+  for (const t of tags) if (t.oid) queue.push(t.oid);
 
   while (queue.length) {
     const oid = queue.shift();
@@ -41,6 +44,7 @@ export function buildGraph(repo) {
     for (const p of n?.parents || []) assignRow(p, minRow + 1);
   }
   for (const b of branches) if (b.oid) assignRow(b.oid, 0);
+  for (const t of tags) if (t.oid) assignRow(t.oid, 0);
 
   // 2b) Which branches can reach each commit (i.e. the commit is on that
   // branch's history) — this is what a hover/tooltip should tell you, since
@@ -111,5 +115,7 @@ export function buildGraph(repo) {
     .filter((b) => b.oid)
     .map((b) => ({ name: b.name, oid: b.oid, lane: laneOf.get(b.oid) ?? 0 }));
 
-  return { nodes, branchTips, headOid, laneCount: nextLane };
+  const tagTips = tags.filter((t) => t.oid).map((t) => ({ name: t.name, oid: t.oid }));
+
+  return { nodes, branchTips, tagTips, headOid, laneCount: nextLane };
 }

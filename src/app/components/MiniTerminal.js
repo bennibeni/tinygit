@@ -21,10 +21,56 @@ const MiniTerminal = React.forwardRef(function MiniTerminal({ exec, placeholder 
     const trimmed = String(line || "").trim();
     if (!trimmed) return;
     const res = await exec(trimmed);
-    setTranscript((t) => [...t.slice(-40), { line: trimmed, ok: res.ok, out: res.out || [] }]);
+    // No cap here on purpose: the person asked to keep track of everything
+    // in a session, not just a rolling window of recent commands.
+    setTranscript((t) => [...t, { line: trimmed, ok: res.ok, out: res.out || [], ts: Date.now() }]);
     setHistory((h) => [...h, trimmed]);
     setHistIndex(null);
     return res;
+  }
+
+  function formatLog() {
+    return transcript
+      .map((t) => {
+        const time = new Date(t.ts).toLocaleTimeString();
+        const body = t.out.length ? t.out.join("\n") : "(nessun output)";
+        return `[${time}] $ ${t.line}\n${body}`;
+      })
+      .join("\n\n");
+  }
+
+  function downloadLog() {
+    const text = formatLog();
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    a.href = url;
+    a.download = `tinygit-log-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyLog() {
+    const text = formatLog();
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.body.removeChild(ta);
+    }
   }
 
   React.useImperativeHandle(ref, () => ({ run: runLine }));
@@ -60,9 +106,44 @@ const MiniTerminal = React.forwardRef(function MiniTerminal({ exec, placeholder 
     }
   }
 
+  const commandCount = transcript.length;
+  const lineCount = transcript.reduce((sum, t) => sum + 1 + (t.out?.length || 0), 0);
+
   return (
     <div className="rounded-2xl border border-white/10 bg-[#0F1216] p-3">
-      <div className="text-[11px] uppercase tracking-widest text-white/40 mb-2">Mini-terminale</div>
+      <div className="flex items-center justify-between mb-2">
+        <div className="text-[11px] uppercase tracking-widest text-white/40">
+          Mini-terminale · {commandCount} comandi · {lineCount} righe
+        </div>
+        <div className="flex gap-1">
+          <button
+            type="button"
+            disabled={commandCount === 0}
+            onClick={copyLog}
+            className={
+              "text-[10px] px-2 py-1 rounded-lg border " +
+              (commandCount === 0
+                ? "border-white/5 text-white/20 cursor-not-allowed"
+                : "border-white/15 text-white/50 hover:border-teal-400/50 hover:text-teal-300")
+            }
+          >
+            Copia log
+          </button>
+          <button
+            type="button"
+            disabled={commandCount === 0}
+            onClick={downloadLog}
+            className={
+              "text-[10px] px-2 py-1 rounded-lg border " +
+              (commandCount === 0
+                ? "border-white/5 text-white/20 cursor-not-allowed"
+                : "border-white/15 text-white/50 hover:border-teal-400/50 hover:text-teal-300")
+            }
+          >
+            Scarica log
+          </button>
+        </div>
+      </div>
       <div className="max-h-48 overflow-auto space-y-1 mb-2 font-mono text-[11px]">
         {transcript.length === 0 && (
           <div className="text-white/25">scrivi "help" per l'elenco comandi…</div>

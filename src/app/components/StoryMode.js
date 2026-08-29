@@ -57,10 +57,55 @@ export default function StoryMode({ git }) {
     const trimmed = line.trim();
     if (!trimmed) return;
     const res = await git.exec(trimmed);
-    setTranscript((t) => [...t.slice(-30), { line: trimmed, ok: res.ok, out: res.out || [] }]);
+    // No cap: keep the full session log so it can be reviewed/downloaded.
+    setTranscript((t) => [...t, { line: trimmed, ok: res.ok, out: res.out || [], ts: Date.now() }]);
     if (markIndex !== undefined) setExecutedCmds((prev) => new Set(prev).add(markIndex));
     setCmdHistory((h) => [...h, trimmed]);
     setHistIndex(null);
+  }
+
+  function formatTerminalLog() {
+    return transcript
+      .map((t) => {
+        const time = new Date(t.ts).toLocaleTimeString();
+        const body = t.out.length ? t.out.join("\n") : "(nessun output)";
+        return `[${time}] $ ${t.line}\n${body}`;
+      })
+      .join("\n\n");
+  }
+
+  function downloadTerminalLog() {
+    const text = formatTerminalLog();
+    const blob = new Blob([text], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+    a.href = url;
+    a.download = `tinygit-log-${stamp}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  async function copyTerminalLog() {
+    const text = formatTerminalLog();
+    if (navigator?.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    ta.style.position = "fixed";
+    ta.style.opacity = "0";
+    document.body.appendChild(ta);
+    ta.focus();
+    ta.select();
+    try {
+      document.execCommand("copy");
+    } finally {
+      document.body.removeChild(ta);
+    }
   }
 
   async function onSubmit(e) {
@@ -249,8 +294,38 @@ export default function StoryMode({ git }) {
 
         {/* Mini terminal */}
         <div className="rounded-2xl border border-white/10 bg-[#0F1216] p-3">
-          <div className="text-[11px] uppercase tracking-widest text-white/40 mb-2">
-            Mini-terminale
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] uppercase tracking-widest text-white/40">
+              Mini-terminale · {transcript.length} comandi · {transcript.reduce((s, t) => s + 1 + (t.out?.length || 0), 0)} righe
+            </div>
+            <div className="flex gap-1">
+              <button
+                type="button"
+                disabled={transcript.length === 0}
+                onClick={copyTerminalLog}
+                className={
+                  "text-[10px] px-2 py-1 rounded-lg border " +
+                  (transcript.length === 0
+                    ? "border-white/5 text-white/20 cursor-not-allowed"
+                    : "border-white/15 text-white/50 hover:border-teal-400/50 hover:text-teal-300")
+                }
+              >
+                Copia log
+              </button>
+              <button
+                type="button"
+                disabled={transcript.length === 0}
+                onClick={downloadTerminalLog}
+                className={
+                  "text-[10px] px-2 py-1 rounded-lg border " +
+                  (transcript.length === 0
+                    ? "border-white/5 text-white/20 cursor-not-allowed"
+                    : "border-white/15 text-white/50 hover:border-teal-400/50 hover:text-teal-300")
+                }
+              >
+                Scarica log
+              </button>
+            </div>
           </div>
           <div className="max-h-40 overflow-auto space-y-1 mb-2 font-mono text-[11px]">
             {transcript.map((t, i) => (

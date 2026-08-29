@@ -8,12 +8,15 @@ import {
 } from "./plumbing";
 import { readCommit, listTreeRecursive, readBlobText } from "./readers";
 
-export function resolveTargetToCommitOid(repo, target) {
+function resolveBaseRef(repo, target) {
   const t = String(target || "").trim();
   if (!t) return null;
 
+  if (t.toUpperCase() === "HEAD") return resolveHEAD(repo);
+
   // branch name shorthand
   if (repo.refs?.[`refs/heads/${t}`]) return repo.refs[`refs/heads/${t}`];
+  if (repo.refs?.[`refs/tags/${t}`]) return repo.refs[`refs/tags/${t}`];
   if (repo.refs?.[t]) return repo.refs[t];
 
   // raw full oid
@@ -29,6 +32,46 @@ export function resolveTargetToCommitOid(repo, target) {
   }
 
   return null;
+}
+
+// Resolves a Git target expression, including trailing ~N / ^N (chainable,
+// like "HEAD~2^" or "main^^"): ~N walks N generations via the first parent,
+// ^N jumps to the N-th parent of a merge commit (1-indexed).
+export function resolveTargetToCommitOid(repo, target) {
+  const raw = String(target || "").trim();
+  if (!raw) return null;
+
+  const m = raw.match(/^(.*?)((?:[~^]\d*)+)$/);
+  const base = m ? m[1] : raw;
+  const suffix = m ? m[2] : "";
+
+  let oid = resolveBaseRef(repo, base);
+  if (!oid) return null;
+  if (!base) return null; // e.g. a target that's ONLY "~2" with no base makes no sense here
+
+  if (suffix) {
+    const tokens = suffix.match(/[~^]\d*/g) || [];
+    for (const tok of tokens) {
+      const kind = tok[0];
+      const n = tok.length > 1 ? parseInt(tok.slice(1), 10) : 1;
+      const c = readCommit(repo, oid);
+      if (!c) return null;
+      if (kind === "~") {
+        let cur = oid;
+        for (let i = 0; i < n; i++) {
+          const cc = readCommit(repo, cur);
+          if (!cc || !cc.parents?.length) return null;
+          cur = cc.parents[0];
+        }
+        oid = cur;
+      } else {
+        const idx = n - 1;
+        if (!c.parents || !c.parents[idx]) return null;
+        oid = c.parents[idx];
+      }
+    }
+  }
+  return oid;
 }
 
 export function getHeadCommitOid(repo) {
@@ -293,15 +336,22 @@ export function status(repo) {
 
   const work = repo.working || {};
   const idx = repo.index || {};
+  const conflictSet = new Set(repo.mergeState?.conflicts || []);
 
   const paths = new Set([
     ...Object.keys(headSnap),
     ...Object.keys(idx),
     ...Object.keys(work),
+    ...conflictSet,
   ]);
 
   const res = [];
   for (const p of [...paths].sort()) {
+    if (conflictSet.has(p)) {
+      res.push({ path: p, work: "conflict", index: "unmerged" });
+      continue;
+    }
+
     const headOid = headSnap[p]?.oid || null;
     const idxOid = idx[p]?.oid || null;
 
@@ -367,3 +417,116 @@ export function createBranch(repo, name) {
   repo.refs[ref] = resolveHEAD(repo); // may be null
   return { ok: true, ref, oid: repo.refs[ref] };
 }
+
+// --- user identity (like a tiny per-repo 'git config') ---
+
+export function setConfig(repo, key, value) {
+  repo.config = repo.config || {};
+  if (key === "user.name") repo.config.userName = value;
+  else if (key === "user.email") repo.config.userEmail = value;
+  else return { ok: false, error: `config: unsupported key "${key}" (only user.name / user.email)` };
+  return { ok: true };
+}
+
+export function getConfigValue(repo, key) {
+  if (key === "user.name") return repo.config?.userName || null;
+  if (key === "user.email") return repo.config?.userEmail || null;
+  return null;
+}
+
+export function getAuthorString(repo) {
+  const name = repo.config?.userName || "You";
+  const email = repo.config?.userEmail || "you@example.com";
+  return `${name} <${email}> 0 +0000`;
+}
+
+// --- tags: fixed labels on a commit, unlike branches they never move ---
+
+export function listTags(repo) {
+  const refs = repo.refs || {};
+  return Object.keys(refs)
+    .filter((k) => k.startsWith("refs/tags/"))
+    .map((k) => ({ name: k.replace("refs/tags/", ""), oid: refs[k] }));
+}
+
+export function createTag(repo, name, targetOid) {
+  const n = String(name || "").trim();
+  if (!n) return { ok: false, error: "tag: missing name" };
+  const ref = `refs/tags/${n}`;
+  if (repo.refs && ref in repo.refs) return { ok: false, error: `tag: already exists (${n})` };
+  const oid = targetOid !== undefined ? targetOid : resolveHEAD(repo);
+  if (!oid) return { ok: false, error: "tag: no commit to tag (HEAD is empty)" };
+  repo.refs[ref] = oid;
+  return { ok: true, oid };
+}
+
+export function deleteTag(repo, name) {
+  const ref = `refs/tags/${name}`;
+  if (!(repo.refs && ref in repo.refs)) return { ok: false, error: `tag: not found (${name})` };
+  delete repo.refs[ref];
+  return { ok: true };
+}
+
+// --- rename a tracked file (working tree + index, in one step) ---
+
+export function movePath(repo, oldPath, newPath) {
+  const o = String(oldPath || "").trim();
+  const n = String(newPath || "").trim();
+  if (!o || !n) return { ok: false, error: "mv: usage: mv <old> <new>" };
+
+  const hasWork = Object.prototype.hasOwnProperty.call(repo.working || {}, o);
+  const idxEntry = repo.index?.[o];
+  if (!hasWork && !idxEntry) return { ok: false, error: `mv: not found: ${o}` };
+
+  if (hasWork) {
+    repo.working[n] = repo.working[o];
+    delete repo.working[o];
+  }
+  if (idxEntry) {
+    repo.index[n] = idxEntry;
+    delete repo.index[o];
+  }
+  return { ok: true };
+}
+
+// --- untracked files: present in working, never staged, never committed ---
+
+export function listUntracked(repo) {
+  const headTree = getHeadTreeOid(repo);
+  const headPaths = new Set(
+    (headTree ? listTreeRecursive(repo, headTree) : []).filter((f) => f.kind === "blob").map((f) => f.path),
+  );
+  const idxPaths = new Set(Object.keys(repo.index || {}));
+  return Object.keys(repo.working || {}).filter((p) => !headPaths.has(p) && !idxPaths.has(p));
+}
+
+export function cleanUntracked(repo) {
+  const paths = listUntracked(repo);
+  for (const p of paths) delete repo.working[p];
+  return paths;
+}
+
+// --- reset: move the current branch (or detached HEAD) to another commit ---
+
+export function reset(repo, targetOid, mode = "mixed") {
+  if (!targetOid) return { ok: false, error: "reset: cannot resolve target" };
+  const c = readCommit(repo, targetOid);
+  if (!c) return { ok: false, error: "reset: target is not a commit" };
+  const treeOid = c.tree;
+
+  if (repo.head.kind === "ref") repo.refs[repo.head.value] = targetOid;
+  else repo.head.value = targetOid;
+
+  if (mode === "soft") {
+    // index and working tree untouched
+  } else if (mode === "mixed") {
+    repo.index = snapshotMapFromTree(repo, treeOid);
+  } else if (mode === "hard") {
+    repo.index = snapshotMapFromTree(repo, treeOid);
+    repo.working = snapshotTextFromTree(repo, treeOid);
+  } else {
+    return { ok: false, error: `reset: unknown mode "${mode}"` };
+  }
+  return { ok: true, oid: targetOid };
+}
+

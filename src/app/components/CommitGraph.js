@@ -29,7 +29,7 @@ export default function CommitGraph({ repo, selected, onSelect }) {
     );
   }
 
-  const { nodes, branchTips, headOid, laneCount } = graph;
+  const { nodes, branchTips, tagTips, headOid, laneCount } = graph;
   const posOf = new Map(nodes.map((n) => [n.oid, n]));
 
   const lanesWidth = Math.max(laneCount, 1) * LANE_W;
@@ -39,6 +39,7 @@ export default function CommitGraph({ repo, selected, onSelect }) {
 
   const xy = (n) => ({ x: PAD_X + n.lane * LANE_W, y: PAD_Y + n.row * ROW_H });
   const laneColor = (lane) => LANE_COLORS[lane % LANE_COLORS.length];
+  const TAG_COLOR = "#F4B942";
 
   return (
     <div className="rounded-2xl border border-white/10 bg-[#0F1216] p-4 overflow-auto">
@@ -47,11 +48,21 @@ export default function CommitGraph({ repo, selected, onSelect }) {
         <div className="flex flex-wrap gap-2">
           {branchTips.map((b) => (
             <span
-              key={b.name}
+              key={`b-${b.name}`}
               className="text-[11px] font-mono px-2 py-0.5 rounded-md border"
               style={{ borderColor: laneColor(b.lane), color: laneColor(b.lane) }}
             >
               {b.name}
+            </span>
+          ))}
+          {(tagTips || []).map((t) => (
+            <span
+              key={`t-${t.name}`}
+              className="text-[11px] font-mono px-2 py-0.5 rounded-md border"
+              style={{ borderColor: TAG_COLOR, color: TAG_COLOR }}
+              title="tag"
+            >
+              🏷 {t.name}
             </span>
           ))}
         </div>
@@ -135,11 +146,14 @@ export default function CommitGraph({ repo, selected, onSelect }) {
               </text>
 
               {/* small inline decoration only for commits that ARE exactly a
-                  branch tip right now — like git's "(main, esperimento)"
-                  ref annotations. Ancestors still get the full list on hover. */}
+                  branch tip (or tagged) right now — like git's
+                  "(main, esperimento, tag: v1)" ref annotations. Ancestors
+                  still get the full branch list on hover. */}
               {(() => {
                 const tipNames = branchTips.filter((b) => b.oid === n.oid).map((b) => b.name);
-                if (!tipNames.length) return null;
+                const tagNames = (tagTips || []).filter((t) => t.oid === n.oid).map((t) => `tag: ${t.name}`);
+                const allNames = [...tipNames, ...tagNames];
+                if (!allNames.length) return null;
                 return (
                   <text
                     x={labelLocalX}
@@ -148,7 +162,7 @@ export default function CommitGraph({ repo, selected, onSelect }) {
                     fill="rgba(255,255,255,0.35)"
                     fontFamily="ui-monospace, monospace"
                   >
-                    {`(${tipNames.join(", ")})`}
+                    {`(${allNames.join(", ")})`}
                   </text>
                 );
               })()}

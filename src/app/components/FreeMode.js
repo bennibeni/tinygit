@@ -89,11 +89,24 @@ export default function FreeMode({ git }) {
     window.location.reload();
   }, []);
 
+  function resetRepo() {
+    if (!confirm("Svuotare completamente il repository e ripartire da zero?")) return;
+    git.reset();
+  }
+
   if (!git.repo) return null;
 
   return (
     <div className="space-y-4">
-      <BranchStrip repo={git.repo} branches={git.branches} onExec={runCmd} />
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <BranchStrip repo={git.repo} branches={git.branches} onExec={runCmd} />
+        <button
+          onClick={resetRepo}
+          className="text-xs px-3 py-1.5 rounded-xl border border-white/10 text-white/40 hover:text-rose-300 hover:border-rose-300/40"
+        >
+          Nuovo repository (reset)
+        </button>
+      </div>
 
       {git.mergeState?.conflicts?.length > 0 && (
         <ConflictResolver repo={git.repo} mergeState={git.mergeState} exec={git.exec} writeFile={git.writeFile} />

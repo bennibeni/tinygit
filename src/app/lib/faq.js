@@ -84,4 +84,49 @@ export const FAQ = [
     live: null,
     note: "In Git vero: 'git log --oneline'.",
   },
+  {
+    id: "graph-text",
+    question: "Come vedo il grafo dei commit in forma testuale, non solo nel pannello?",
+    command: "log --graph",
+    live: null,
+    note: "In Git vero: 'git log --graph --oneline' (qui il prefisso 'git' è opzionale, funziona anche 'log --graph').",
+  },
+  {
+    id: "diff-areas",
+    question: "Come vedo le differenze tra due aree senza aprire un pannello?",
+    command: "diff",
+    live: null,
+    note: "'diff' confronta working↔index; 'diff --staged' confronta index↔HEAD — la stessa distinzione di 'git diff' e 'git diff --staged'.",
+  },
+  {
+    id: "merged-branches",
+    question: "Quali branch sono già confluiti in quello su cui mi trovo?",
+    command: "branch --merged",
+    live: (repo) => {
+      const cur = currentBranchName(repo);
+      return cur ? `Confronto rispetto a: ${cur}` : null;
+    },
+    note: "In Git vero: 'git branch --merged' (e il contrario, 'git branch --no-merged').",
+  },
+  {
+    id: "git-prefix",
+    question: "Posso scrivere i comandi con 'git' davanti, come in un terminale vero?",
+    command: "git status",
+    live: () => "Sì — il prefisso 'git' viene sempre ignorato, 'git status' e 'status' fanno la stessa cosa.",
+    note: "Utile se stai seguendo una guida che scrive sempre i comandi per intero, es. 'git branch', 'git checkout main'.",
+  },
+  {
+    id: "show-commit",
+    question: "Come vedo messaggio e differenze di un commit specifico?",
+    command: "show HEAD",
+    live: null,
+    note: "In Git vero: 'git show <hash>' (o 'git show HEAD' per l'ultimo commit).",
+  },
+  {
+    id: "move-branch",
+    question: "Ho creato un branch nel punto sbagliato: posso spostarlo senza cancellarlo?",
+    command: "branch -f <nome> <nuovo-target>",
+    live: null,
+    note: "In Git vero: 'git branch -f <nome> <target>' sposta un branch esistente su un altro commit, sovrascrivendo dove puntava prima.",
+  },
 ];

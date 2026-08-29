@@ -8,7 +8,7 @@ import {
   setHEADDetached,
   writeBlob,
 } from "./plumbing";
-import { snapshotMapFromTree, snapshotTextFromTree, resolveTargetToCommitOid } from "./porcelain";
+import { snapshotMapFromTree, snapshotTextFromTree, resolveTargetToCommitOid, getAuthorString } from "./porcelain";
 
 // --- Ancestry -------------------------------------------------------------
 
@@ -231,7 +231,7 @@ export async function completeMerge(repo, { message, author } = {}) {
   }
 
   const treeOid = await writeTreeFromIndex(repo, repo.index);
-  const who = author || "You <you@example.com> 0 +0000";
+  const who = author || getAuthorString(repo);
   const commitOid = await writeCommit(repo, {
     treeOid,
     parents: [ms.headOid, ms.theirsOid],

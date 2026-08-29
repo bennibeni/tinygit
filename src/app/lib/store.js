@@ -15,6 +15,8 @@ export function loadRepo() {
     parsed.head ||= { kind: "ref", value: "refs/heads/main" };
     parsed.index ||= {};
     parsed.working ||= {};
+    parsed.config ||= {};
+    parsed.stashes ||= [];
 
     return parsed;
   } catch {
@@ -33,6 +35,8 @@ export function newRepo() {
     head: { kind: "ref", value: "refs/heads/main" },
     index: {},
     working: {},
+    config: {},
+    stashes: [],
   };
 }
 
