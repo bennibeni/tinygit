@@ -2,6 +2,29 @@
 @tailwind components;
 @tailwind utilities;
 
-html, body {
-  background-color: #0B0D10;
+html,
+body {
+  background-color: #0b0d10;
+}
+
+footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 38px;
+  padding-top: 17px;
+  border-top: 1px solid #aeb1a9;
+  color: #747a75;
+  font:
+    400 10px DM Mono,
+    monospace;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.projects-footer a {
+  color: #747a75;
+  text-decoration: none;
+  transition: color 0.2s;
+}
+.projects-footer a:hover {
+  color: #d14b37;
 }
